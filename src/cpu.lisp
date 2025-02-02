@@ -41,6 +41,9 @@
    :half-carry (= (logand (ash byte -5) #b00000001) 1)
    :carry (= (logand (ash byte -4) #b00000001) 1)))
 
+(defun read-memory (cpu short)
+  (aref (cpu-memory cpu) short))
+
 (defstruct cpu
   (memory (make-array '(#xFFFF)))
   (program-counter #b00000000)
