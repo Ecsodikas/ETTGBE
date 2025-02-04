@@ -51,9 +51,6 @@
   (flags (make-flags))
   (registers (make-registers)))
 
-(defun execute-instruction (cpu byte)
-  (funcall (cdr (assoc byte *instruction-db*)) cpu))
-
 (defun load-16-register (cpu r1 r2)
   (let ((r1 (load-register cpu r1))
         (r2 (load-register cpu r2)))

@@ -1,10 +1,15 @@
 (in-package #:ecsodikas.ettgbe)
-
+                                        ; NOP
 (defun nop (cpu)
   (let ((new-cpu (copy-cpu cpu)))
     (incf (cpu-program-counter new-cpu) 1)
     new-cpu))
 
+                                        ; HALT
+(defun halt (cpu)
+  (let ((new-cpu (copy-cpu cpu)))
+    (setf (cpu-is-halted new-cpu) T)
+    new-cpu))
 
                                         ; ADD
 (defun add (cpu r)
@@ -336,7 +341,7 @@
       (set-register new-cpu reg (logand #xFF res)))
     new-cpu))
 
-(defun sr (cpu reg)
+(defun sra (cpu reg)
   (let ((new-cpu (copy-cpu cpu)))
     (incf (cpu-program-counter cpu))
     (let* ((r (load-register cpu reg))
@@ -372,7 +377,7 @@
     new-cpu))
 
 
-(defun sl (cpu reg)
+(defun sla (cpu reg)
   (let ((new-cpu (copy-cpu cpu)))
     (incf (cpu-program-counter cpu) 2)
     (let* ((r (load-register cpu reg))
@@ -400,7 +405,7 @@
                  (ash (logand r 1) 7)
                  (ash (logand r 1) 8))))
       (set-flags new-cpu
-                 :z NIL
+                 :z (zerop res)
                  :n NIL
                  :h NIL
                  :c (> res #xFF))
@@ -417,7 +422,7 @@
                  (ash r -1)
                  (ash (logand r 1) 7))))
       (set-flags new-cpu
-                 :z NIL
+                 :z (zerop res)
                  :n NIL
                  :h NIL
                  :c (> res #xFF))
@@ -476,4 +481,92 @@
                  :n NIL
                  :h NIL
                  :c NIL))
+    new-cpu))
+
+                                        ; LD
+
+(defun ld-8-reg (cpu target source)
+  (let* ((new-cpu (copy-cpu cpu))
+         (val (load-register new-cpu source)))
+    (incf (cpu-program-counter new-cpu))
+    (set-register cpu target val)))
+
+(defun ld-8-d (cpu target value)
+  (let* ((new-cpu (copy-cpu cpu)))
+    (incf (cpu-program-counter new-cpu))
+    (set-register cpu target value)))
+
+(defun ld-16-hl (cpu target)
+  (let* ((new-cpu (copy-cpu cpu))
+         (val (load-register new-cpu :hl)))
+    (incf (cpu-program-counter new-cpu))
+    (set-register cpu target val)))
+
+                                        ; JP
+                                        ; TODO: Little endianski?
+
+(defun jp-if-zero (cpu addr)
+  (let ((new-cpu (copy-cpu cpu)))
+    (if (flags-zero (cpu-flags new-cpu))
+        (progn
+          (setf (cpu-program-counter new-cpu) addr)
+          new-cpu)
+        (progn
+          (incf (cpu-program-counter new-cpu) 3)
+          new-cpu))))
+
+
+(defun jp-if-not-zero (cpu addr)
+  (let ((new-cpu (copy-cpu cpu)))
+    (if (not (flags-zero (cpu-flags new-cpu)))
+        (progn
+          (setf (cpu-program-counter new-cpu) addr)
+          new-cpu)
+        (progn
+          (incf (cpu-program-counter new-cpu) 3)
+          new-cpu))))
+
+(defun jr-if-zero (cpu offset)
+  (let ((new-cpu (copy-cpu cpu)))
+    (if (flags-zero (cpu-flags new-cpu))
+        (progn
+          (incf (cpu-program-counter new-cpu) offset)
+          new-cpu)
+        (progn
+          (incf (cpu-program-counter new-cpu) 3)
+          new-cpu))))
+
+(defun jr-if-not-zero (cpu offset)
+  (let ((new-cpu (copy-cpu cpu)))
+    (if (not (flags-zero (cpu-flags new-cpu)))
+        (progn
+          (incf (cpu-program-counter new-cpu) offset)
+          new-cpu)
+        (progn
+          (incf (cpu-program-counter new-cpu) 3)
+          new-cpu))))
+
+(defun jhl (cpu)
+  (let ((new-cpu (copy-cpu cpu)))
+    (setf (cpu-program-counter new-cpu) (load-register new-cpu :hl))))
+
+                                        ; STACK
+(defun pushh (cpu register)
+  (let* ((new-cpu (copy-cpu cpu))
+         (val (load-register new-cpu register))
+         (msb (ash (logand #xFF00 val) -8))
+         (lsb (logand #x00FF val)))
+    (decf (cpu-stack-counter new-cpu))
+    (write-memory new-cpu (cpu-stack-counter new-cpu) msb)
+    (decf (cpu-stack-counter new-cpu))
+    (write-memory new-cpu (cpu-stack-counter new-cpu) lsb)
+    new-cpu))
+
+(defun popp (cpu register)
+  (let* ((new-cpu (copy-cpu cpu))
+         (lsb (read-memory new-cpu (cpu-stack-counter new-cpu)))
+         (msb (read-memory new-cpu (1+ (cpu-stack-counter new-cpu))))
+         (res (logior (ash msb 8) lsb)))
+    (incf (cpu-stack-counter new-cpu) 2)
+    (set-register new-cpu register res)
     new-cpu))
