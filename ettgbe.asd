@@ -12,7 +12,8 @@
   :components ((:file "src/package")
                (:file "src/ettgbe")
                (:file "src/cpu")
-               (:file "src/instruction")))
+               (:file "src/instruction")
+               (:file "src/util")))
 
 (asdf:defsystem #:ettgbe/test
   :description "Tests for Ecsodikas' Time Traveling Game Boy Emulator."
