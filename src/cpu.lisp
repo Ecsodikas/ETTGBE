@@ -44,8 +44,24 @@
 (defun read-memory (cpu short)
   (aref (cpu-memory cpu) short))
 
+(defun write-memory (cpu addr value)
+  (setf (aref (cpu-memory cpu) addr) value))
+
+                                        ; TODO
+(defun execute-prefix-instruction (cpu)
+  cpu)
+
+(defun execute-single-instruction (cpu)
+  cpu)
+
+(defun execute-instruction (cpu byte)
+  (if (= byte #xCB)
+      (execute-prefix-instruction cpu)
+      (execute-single-instruction cpu)))
+
 (defstruct cpu
   (memory (make-array '(#xFFFF)))
+  (is-halted NIL)
   (program-counter #b00000000)
   (stack-counter #b00000000)
   (flags (make-flags))
