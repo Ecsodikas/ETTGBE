@@ -310,19 +310,19 @@
     new-cpu))
 
                                         ; SCF
-(defun ccf (cpu)
+(defun scf (cpu)
   (let ((new-cpu (copy-cpu cpu)))
     (incf (cpu-program-counter cpu))
     (set-flags new-cpu
                :c T)
     new-cpu))
 
-                                        ; RRA
+                                        ; RR
 
-(defun rra (cpu)
+(defun rr (cpu reg)
   (let ((new-cpu (copy-cpu cpu)))
     (incf (cpu-program-counter cpu))
-    (let* ((r (load-register cpu :a))
+    (let* ((r (load-register cpu reg))
            (f (if (flags-carry (cpu-flags new-cpu)) 1 0))
            (res (+
                  (ash r -1)
@@ -333,14 +333,32 @@
                  :n NIL
                  :h NIL
                  :c (> res #xFF))
-      (set-register new-cpu :a (logand #xFF res)))
+      (set-register new-cpu reg (logand #xFF res)))
     new-cpu))
 
-                                        ; RLA
-(defun rla (cpu)
+(defun sr (cpu reg)
   (let ((new-cpu (copy-cpu cpu)))
     (incf (cpu-program-counter cpu))
-    (let* ((r (load-register cpu :a))
+    (let* ((r (load-register cpu reg))
+           (sign (logand #b10000000 r))
+           (f (if (flags-carry (cpu-flags new-cpu)) 1 0))
+           (res (+
+                 (ash r -1)
+                 (ash (if (not (= (logand f (ash 1 7)) 0)) 1 0) 7)
+                 (ash (logand r 1) 8))))
+      (set-flags new-cpu
+                 :z NIL
+                 :n NIL
+                 :h NIL
+                 :c (> res #xFF))
+      (set-register new-cpu reg (logior sign (logand #xFF res))))
+    new-cpu))
+
+                                        ; RL
+(defun rl (cpu reg)
+  (let ((new-cpu (copy-cpu cpu)))
+    (incf (cpu-program-counter cpu 2))
+    (let* ((r (load-register cpu reg))
            (f (if (flags-carry (cpu-flags new-cpu)) 1 0))
            (res (+
                  (ash r -1)
@@ -350,15 +368,33 @@
                  :n NIL
                  :h NIL
                  :c (> res #xFF))
-      (set-register new-cpu :a (logand #xFF res)))
+      (set-register new-cpu reg (logand #xFF res)))
     new-cpu))
 
-                                        ; RRCA
 
-(defun rrca (cpu)
+(defun sl (cpu reg)
+  (let ((new-cpu (copy-cpu cpu)))
+    (incf (cpu-program-counter cpu) 2)
+    (let* ((r (load-register cpu reg))
+           (sign (logior #b10000000 r))
+           (f (if (flags-carry (cpu-flags new-cpu)) 1 0))
+           (res (+
+                 (ash r -1)
+                 (if (not (= (logand f (ash 1 7)) 0)) 1 0))))
+      (set-flags new-cpu
+                 :z NIL
+                 :n NIL
+                 :h NIL
+                 :c (> res #xFF))
+      (set-register new-cpu reg (logior sign (logand #xFF res))))
+    new-cpu))
+
+                                        ; RRC
+
+(defun rrc (cpu reg)
   (let ((new-cpu (copy-cpu cpu)))
     (incf (cpu-program-counter cpu))
-    (let* ((r (load-register cpu :a))
+    (let* ((r (load-register cpu reg))
            (res (+
                  (ash r -1)
                  (ash (logand r 1) 7)
@@ -368,15 +404,15 @@
                  :n NIL
                  :h NIL
                  :c (> res #xFF))
-      (set-register new-cpu :a (logand #xFF res)))
+      (set-register new-cpu reg (logand #xFF res)))
     new-cpu))
 
 
-                                        ; RLCA
-(defun rlca (cpu)
+                                        ; RLC
+(defun rlc (cpu reg)
   (let ((new-cpu (copy-cpu cpu)))
     (incf (cpu-program-counter cpu))
-    (let* ((r (load-register cpu :a))
+    (let* ((r (load-register cpu reg))
            (res (+
                  (ash r -1)
                  (ash (logand r 1) 7))))
@@ -385,7 +421,7 @@
                  :n NIL
                  :h NIL
                  :c (> res #xFF))
-      (set-register new-cpu :a (logand #xFF res)))
+      (set-register new-cpu reg (logand #xFF res)))
     new-cpu))
 
                                         ; CPL
@@ -402,7 +438,7 @@
                                         ; BIT
 (defun bitt (cpu r p)
   (let ((new-cpu (copy-cpu cpu)))
-    (incf (cpu-program-counter cpu))
+    (incf (cpu-program-counter cpu 2))
     (let ((r (load-register cpu r)))
       (set-flags new-cpu
                  :z (= (logand (ash r (- p 1)) 1) 1)
@@ -414,7 +450,7 @@
                                         ; RESET
 (defun reset (cpu r p)
   (let ((new-cpu (copy-cpu cpu)))
-    (incf (cpu-program-counter cpu))
+    (incf (cpu-program-counter cpu 2))
     (let ((r (load-register cpu r)))
       (set-register cpu r (clear-bit r p)))
     new-cpu))
@@ -422,7 +458,22 @@
                                         ; SET
 (defun sett (cpu r p)
   (let ((new-cpu (copy-cpu cpu)))
-    (incf (cpu-program-counter cpu))
+    (incf (cpu-program-counter cpu 2))
     (let ((r (load-register cpu r)))
       (set-register cpu r (set-bit r p)))
+    new-cpu))
+
+                                        ; SWAP
+(defun swap (cpu r)
+  (let ((new-cpu (copy-cpu cpu)))
+    (incf (cpu-program-counter cpu 2))
+    (let* ((rv (load-register cpu r))
+           (ln (logand rv #x0F))
+           (un (logand rv #xF0)))
+      (set-register cpu r (logior (ash ln 4) (ash un -4)))
+      (set-flags new-cpu
+                 :z (zerop rv)
+                 :n NIL
+                 :h NIL
+                 :c NIL))
     new-cpu))
